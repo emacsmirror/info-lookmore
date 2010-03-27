@@ -1,9 +1,9 @@
 ;;; info-lookmore.el --- more things for info-look.el
 
-;; Copyright 2008, 2009 Kevin Ryde
+;; Copyright 2008, 2009, 2010 Kevin Ryde
 
 ;; Author: Kevin Ryde <user42@zip.com.au>
-;; Version: 2
+;; Version: 3
 ;; Keywords: help, languages
 ;; URL: http://user42.tuxfamily.org/info-lookmore/index.html
 
@@ -53,6 +53,8 @@
 
 ;; Version 1 - the first version
 ;; Version 2 - new info-lookmore-coreutils-index
+;; Version 3 - info-lookmore-c++-use-c correction to file setup
+;;           - info-lookmore-coreutils-index do nothing in emacs21
 
 ;;; Code:
 
@@ -73,8 +75,9 @@ new doc-list.  FUNC mustn't change the old value, but should copy
 or cons as necessary.
 
 If FUNC returns a changed DOC-LIST then `info-lookup-reset' is
-called to let it take effect for the next lookup."
+called to let it take effect on the next lookup."
 
+  ;; (declare (indent 1)) ;; emacs22,xemacs21, or 'cl
   (let* ((mode-value (info-lookmore->mode-value topic mode))
          (old        (nth 3 mode-value))
          (new        (funcall func old)))
@@ -205,12 +208,11 @@ and following `emacs-lisp-mode' lets you look them up.
 This function is for use in Emacs 23 and earlier.  Post-23 has
 this setup already and this function does nothing there."
 
-  (let ((mode-value (info-lookmore->mode-value 'symbol 'emacs-lisp-mode)))
-    (info-lookup-maybe-add-help
-     :topic       'symbol
-     :mode        'apropos-mode
-     :regexp      (nth 1 mode-value)
-     :parse-rule  (nth 4 mode-value)))
+  (info-lookup-maybe-add-help
+   :topic       'symbol
+   :mode        'apropos-mode
+   :regexp      (info-lookup->regexp     'symbol 'emacs-lisp-mode)
+   :parse-rule  (info-lookup->parse-rule 'symbol 'emacs-lisp-mode))
   (info-lookmore-add-other-mode 'symbol 'apropos-mode 'emacs-lisp-mode))
 
 
@@ -281,18 +283,17 @@ else has already made a c++-mode entry.  Not sure if that comes
 out quite right for real C++, but it's fine for mostly-C things."
 
   (interactive)
-  (let ((mode-value (info-lookmore->mode-value 'file 'c-mode)))
-    (info-lookup-maybe-add-help
-     :topic       'file
-     :mode        'c++-mode
-     :regexp      (nth 1 mode-value)
-     :parse-rule  (nth 4 mode-value)))
-  (let ((mode-value (info-lookmore->mode-value 'file 'c-mode)))
-    (info-lookup-maybe-add-help
-     :topic       'symbol
-     :mode        'c++-mode
-     :regexp      (nth 1 mode-value)
-     :parse-rule  (nth 4 mode-value)))
+  (info-lookup-maybe-add-help
+   :topic      'file
+   :mode       'c++-mode
+   :regexp     (info-lookup->regexp     'file 'c-mode)
+   :parse-rule (info-lookup->parse-rule 'file 'c-mode))
+  (info-lookup-maybe-add-help
+   :topic      'symbol
+   :mode       'c++-mode
+   :regexp     (info-lookup->regexp     'symbol 'c-mode)
+   :parse-rule (info-lookup->parse-rule 'symbol 'c-mode))
+
   (info-lookmore-add-other-mode 'file   'c++-mode 'c-mode)
   (info-lookmore-add-other-mode 'symbol 'c++-mode 'c-mode))
 
@@ -304,19 +305,24 @@ out quite right for real C++, but it's fine for mostly-C things."
 (defun info-lookmore-coreutils-index ()
   "Add \"(coreutils)Concept Index\" node name.
 Past coreutils used node name \"Index\", versions circa 8.1 use
-\"Concept Index\".
+\"Concept Index\".  The latter is added to `sh-mode' setups if
+not already present.
 
-This function is for use in Emacs 23 and earlier.  Post-23 has
-this setup already and this function does nothing there."
+This function is for use in Emacs 22.x and 23.1.  Emacs 23.2 has
+this setup already and this function does nothing there.  Emacs
+21 and XEmacs 21 don't have any `sh-mode' setups and nothing is
+done there unless you've added your own (in which case copying
+from the latest Emacs is probably best)."
 
   (interactive)
-  ;; check for the node name, allowing any trans-func value in the entry
-  (unless (assoc "(coreutils)Concept Index"
-                 (nth 3 (info-lookmore->mode-value 'symbol 'sh-mode)))
+  (when (let ((doc-specs (info-lookup->doc-spec 'symbol 'sh-mode)))
+          (and doc-specs
+               (not (assoc "(coreutils)Concept Index" doc-specs))))
     (info-lookmore-add-doc
      'symbol 'sh-mode
-     '("(coreutils)Concept Index"
-       (lambda (item) (if (string-match "\\`[a-z]+\\'" item) item))))))
+     (eval-when-compile
+       `("(coreutils)Concept Index"
+         ,(lambda (item) (if (string-match "\\`[a-z]+\\'" item) item)))))))
 
 
 (provide 'info-lookmore)
