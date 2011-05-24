@@ -1,10 +1,10 @@
 ;;; info-lookmore.el --- more things for info-look.el
 
-;; Copyright 2008, 2009, 2010 Kevin Ryde
+;; Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 ;; Author: Kevin Ryde <user42@zip.com.au>
-;; Version: 3
-;; Keywords: help, languages
+;; Version: 4
+;; Keywords: help, languages, info-look
 ;; URL: http://user42.tuxfamily.org/info-lookmore/index.html
 
 ;; info-lookmore.el is free software; you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 
 ;;; Commentary:
 
-;; This is some more stuff for `info-lookup-symbol' - a couple of specific
+;; This is some more stuff for `info-lookup-symbol' -- a couple of specific
 ;; manuals to add and a couple of mode setups.
 ;;
 ;; Functions adding manuals are `interactive' you can use M-x whatever to
@@ -55,11 +55,13 @@
 ;; Version 2 - new info-lookmore-coreutils-index
 ;; Version 3 - info-lookmore-c++-use-c correction to file setup
 ;;           - info-lookmore-coreutils-index do nothing in emacs21
+;; Version 4 - new info-lookmore-makefile-derivatives
 
 ;;; Code:
 
 (require 'info-look)
 
+(put  'info-lookmore->mode-value 'side-effect-free t)
 (defun info-lookmore->mode-value (topic mode)
   "Return the mode value list for TOPIC and MODE.
 This is `info-lookup->mode-value', but signalling an error if
@@ -68,6 +70,7 @@ TOPIC and MODE are not found."
       (error "Topic `%S' or mode `%S' not found in info-lookup-alist"
              topic mode)))
 
+(put  'info-lookmore-modify-doclist 'lisp-indent-function 2)
 (defun info-lookmore-modify-doclist (topic mode func)
   "Call FUNC to modify the document list for info-lookup TOPIC and MODE.
 FUNC is called (FUNC doc-list) and its return value is set as the
@@ -84,7 +87,6 @@ called to let it take effect on the next lookup."
     (unless (equal old new)
       (setcar (nthcdr 3 mode-value) new)
       (info-lookup-reset))))
-(put 'info-lookmore-modify-doclist 'lisp-indent-function 2)
 
 ;;;###autoload
 (defun info-lookmore-add-doc (topic mode doc-spec &optional append)
@@ -296,6 +298,64 @@ out quite right for real C++, but it's fine for mostly-C things."
 
   (info-lookmore-add-other-mode 'file   'c++-mode 'c-mode)
   (info-lookmore-add-other-mode 'symbol 'c++-mode 'c-mode))
+
+
+;;-----------------------------------------------------------------------------
+;; makefile-mode derivatives
+
+;;;###autoload
+(defun info-lookmore-makefile-derivatives ()
+  "Add info-lookup setups for `makefile-mode' derivatives.
+The following modes are setup, if they don't already have setups.
+
+    `makefile-automake-mode'
+    `makefile-bsdmake-mode'
+    `makefile-gmake-mode'
+    `makefile-imake-mode'
+    `makefile-makepp-mode'
+
+`makefile-automake-mode' looks in the automake manual then the
+make manual.  The others go to `makefile-mode' only."
+
+  (interactive)
+  (info-lookup-maybe-add-help
+   :topic      'symbol
+   :mode       'makefile-automake-mode
+   ;; similar regexp/parse-rule as makefile-mode, but also
+   ;;   "##" special automake comment
+   ;;   "+=" append operator, separate from the GNU make one
+   :regexp     "\\$[^({]\\|\\.[_A-Z]*\\|[_a-zA-Z][_a-zA-Z0-9-]*\\|##\\|\\+="
+   :parse-rule "\\$[^({]\\|\\.[_A-Z]*\\|[_a-zA-Z0-9-]+\\|##\\|\\+="
+   :doc-spec   '(
+                 ;; "(automake)Macro Index" is autoconf macros used in
+                 ;; configure.in, not Makefile.am, so don't have that here.
+                 ("(automake)Variable Index" nil "^[ \t]*`" "'")
+                 ;; in automake 1.4 it was a combined node
+                 ("(automake)Macro and Variable Index" nil "^[ \t]*`" "'")
+
+                 ;; Directives like "if" are in the General Index.
+                 ;; Prefix "`" since the text for say `+=' isn't always have
+                 ;; an @item etc of its own.
+                 ("(automake)General Index" nil "`" "'")
+                 ;; In automake 1.3 there was just a single "Index" node.
+                 ("(automake)Index" nil "`" "'")))
+
+  ;; Same REGEXP, PARSE-RULE as makefile-mode.
+  ;; Even if these make variants have their own variable forms etc there no
+  ;; benefit recognising them if theres nothing in the GNU make manual
+  ;; describing them.
+  (let ((regexp     (info-lookup->regexp     'symbol 'makefile-mode))
+        (parse-rule (info-lookup->parse-rule 'symbol 'makefile-mode)))
+    (dolist (mode '(makefile-bsdmake-mode
+                    makefile-gmake-mode
+                    makefile-imake-mode
+                    makefile-makepp-mode))
+      (info-lookup-maybe-add-help
+       :topic       'symbol
+       :mode        mode
+       :regexp      regexp
+       :parse-rule  parse-rule
+       :other-modes '(makefile-mode)))))
 
 
 ;;-----------------------------------------------------------------------------
