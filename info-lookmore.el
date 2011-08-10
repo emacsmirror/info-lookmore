@@ -3,7 +3,7 @@
 ;; Copyright 2008, 2009, 2010, 2011 Kevin Ryde
 
 ;; Author: Kevin Ryde <user42@zip.com.au>
-;; Version: 4
+;; Version: 5
 ;; Keywords: help, languages, info-look
 ;; URL: http://user42.tuxfamily.org/info-lookmore/index.html
 
@@ -22,18 +22,17 @@
 
 ;;; Commentary:
 
-;; This is some more stuff for `info-lookup-symbol' -- a couple of specific
-;; manuals to add and a couple of mode setups.
+;; This is some more stuff for `info-lookup-symbol' -- some specific manuals
+;; to add and a couple of mode setups.
 ;;
-;; Functions adding manuals are `interactive' you can use M-x whatever to
-;; have it just for the current session.
+;; Functions adding manuals are `interactive' you can M-x whatever to have
+;; it just for the current session.
 ;;
-;; There's only a handful of manual-specific functions.  For anything else
-;; see `info-lookmore-add-doc'.  Usually you have to find the node name for
-;; the index, then check whether entries can be used directly or need a bit
-;; of mangling.  The easiest is when there's a separate "Functions" or
-;; "Functions and Variables" index.  See `info-lookup-alist' for the
-;; details.
+;; For manuals not covered see `info-lookmore-add-doc'.  Usually you have to
+;; find the node name for the index, then check whether entries can be used
+;; directly or need mangling.  The easiest is when there's a separate
+;; "Functions" or "Functions and Variables" index.  See `info-lookup-alist'
+;; for the details.
 
 ;;; Install:
 
@@ -46,8 +45,8 @@
 ;; for each setup function you want.
 ;;
 ;; There's autoload cookies for the functions if you know how to use
-;; `update-file-autoloads' and friends, after which just eval-after-load for
-;; each you want permanently, or M-x for one session.
+;; `update-file-autoloads' and friends, after which just `eval-after-load'
+;; for each you want permanently, or M-x for one session.
 
 ;;; History:
 
@@ -56,6 +55,7 @@
 ;; Version 3 - info-lookmore-c++-use-c correction to file setup
 ;;           - info-lookmore-coreutils-index do nothing in emacs21
 ;; Version 4 - new info-lookmore-makefile-derivatives
+;; Version 5 - new info-lookmore-c-gsl
 
 ;;; Code:
 
@@ -207,8 +207,8 @@ apropos-mode is the function/variable docstring display for
 `describe-function' etc.  Symbols etc are usually elisp things
 and following `emacs-lisp-mode' lets you look them up.
 
-This function is for use in Emacs 23 and earlier.  Post-23 has
-this setup already and this function does nothing there."
+This function is for use in Emacs 23.1 and earlier.  23.2 and up
+has this setup already and this function does nothing there."
 
   (info-lookup-maybe-add-help
    :topic       'symbol
@@ -269,6 +269,32 @@ added."
   (info-lookmore-add-doc 'symbol 'c-mode
                           '("(history)Function and Variable Index" nil
                             "^ -.* " "\\>")))
+
+;;;###autoload
+(defun info-lookmore-c-gsl ()
+  "Add the GNU Scientific Library manuals to `c-mode' info-lookup.
+See info node `(gsl-ref)Top' for the GSL manual."
+  (interactive)
+  (info-lookmore-add-doc 'symbol 'c-mode
+                         '("(gsl-ref)Function Index"
+                           nil
+                           "^ -.* " "\\>"))
+  (info-lookmore-add-doc 'symbol 'c-mode
+                         '("(gsl-ref)Type Index"
+                           nil
+                           "^ -.* " "\\>"))
+  (info-lookmore-add-doc
+   'symbol 'c-mode
+   `("(gsl-ref)Variable Index"
+     ,(lambda (item)
+        ;; As of GSL 1.15 only the "gsl_*" and "GSL_*" names in the Variable
+        ;; Index are globals.  Entries for "alpha", "verbose" etc are fields
+        ;; of "struct gsl_monte_vegas_params" and similar.
+        (and (let ((case-fold-search t))
+               (string-match "\\`gsl" item))
+             item))
+     "^ -.* " "\\>")))
+
 
 ;;-----------------------------------------------------------------------------
 ;; C++
