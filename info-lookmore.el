@@ -1,9 +1,9 @@
 ;;; info-lookmore.el --- more things for info-look.el
 
-;; Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2015 Kevin Ryde
+;; Copyright 2008, 2009, 2010, 2011, 2013, 2014, 2015, 2016, 2017 Kevin Ryde
 
 ;; Author: Kevin Ryde <user42_kevin@yahoo.com.au>
-;; Version: 6
+;; Version: 7
 ;; Keywords: help, languages, info-look
 ;; URL: http://user42.tuxfamily.org/info-lookmore/index.html
 
@@ -60,14 +60,15 @@
 ;; Version 4 - new info-lookmore-makefile-derivatives
 ;; Version 5 - new info-lookmore-c-gsl
 ;; Version 6 - makeinfo single-quote variants
+;; Version 7 - really end at "ends here", don't add-to-list on let binding
 
 ;;; Code:
 
 (require 'info-look)
 
 (eval-when-compile
-  (unless (and (fboundp 'ignore-errors)  ;; macros
-               (fboundp 'declare))
+  (unless (and (fboundp 'declare)  ;; macros
+               (fboundp 'ignore-errors))
     (require 'cl))) ;; for macros
 
 
@@ -83,7 +84,7 @@ TOPIC and MODE are not found."
   (put 'info-lookmore->mode-value 'side-effect-free t))
 
 (defun info-lookmore-modify-doclist (topic mode func)
-  "Call FUNC to modify the document list for info-lookup TOPIC and MODE.
+  "Modify document list for info-lookup TOPIC and MODE by calling FUNC.
 FUNC is called (FUNC doc-list) and its return value is set as the
 new doc-list.  FUNC mustn't change the given doc-list, but should
 copy or cons as necessary.
@@ -112,7 +113,12 @@ existing docs, or if APPEND is non-nil then after."
 
   (info-lookmore-modify-doclist topic mode
     (lambda (doc-list)
-      (add-to-list 'doc-list doc-spec append))))
+      (cond ((member doc-spec doc-list)
+             doc-list) ;; already present, list unchanged
+            (append    ;; otherwise add by append or prepend
+             (append doc-list (list doc-spec)))
+            (t
+             (cons doc-spec doc-list))))))
 
 ;; ;;;###autoload
 ;; (defun info-lookmore-remove-doc (topic mode info-node)
@@ -442,9 +448,9 @@ from the latest Emacs is probably best)."
 
 ;;------------------------------------------------------------------------------
 
-;; LocalWords: lookup FUNC docstring builtin func readline automake Elisp
+;; LocalWords:  lookup FUNC docstring builtin func readline automake Elisp
+;; LocalWords:  coreutils lookmore
 
 (provide 'info-lookmore)
 
 ;;; info-lookmore.el ends here
-;;  LocalWords:  coreutils
